@@ -71,6 +71,12 @@ class UserBriefSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     employee_number = serializers.CharField()
     name = serializers.CharField()
+    department = serializers.SerializerMethodField()
+
+    def get_department(self, obj):
+        if obj.department_id is None:
+            return None
+        return {"id": obj.department_id, "name": obj.department.name}
 
 
 class ReviewPeriodBriefSerializer(serializers.ModelSerializer):
