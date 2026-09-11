@@ -34,6 +34,7 @@ from .services import (
     create_review_period,
     deactivate_question,
     ensure_period_editable,
+    filter_reviews,
     get_or_create_review,
     get_progress,
     save_answer,
@@ -41,6 +42,7 @@ from .services import (
     update_question,
     validate_evaluators,
 )
+from scoring.services import ScoringError, calculate_and_store_final_score
 
 
 class ReviewPeriodViewSet(viewsets.ModelViewSet):
@@ -160,9 +162,13 @@ class AdminReviewViewSet(
     permission_classes = [IsAdminUserRole]
 
     def get_queryset(self):
-        return Review.objects.select_related(
-            "review_period", "employee", "primary_evaluator", "secondary_evaluator"
-        ).order_by("id")
+        params = self.request.query_params
+        return filter_reviews(
+            review_period_id=params.get("review_period"),
+            department_id=params.get("department"),
+            status=params.get("status"),
+            employee_id=params.get("employee"),
+        )
 
     def create(self, request):
         serializer = AdminReviewCreateSerializer(data=request.data)
@@ -199,6 +205,15 @@ class AdminReviewViewSet(
                 secondary_evaluator=data.get("secondary_evaluator"),
             )
         except EvaluatorValidationError as exc:
+            return Response({"detail": str(exc)}, status=400)
+        return Response(AdminReviewSerializer(review).data)
+
+    @action(detail=True, methods=["post"], url_path="calculate-score")
+    def calculate_score(self, request, pk=None):
+        review = self.get_object()
+        try:
+            calculate_and_store_final_score(review)
+        except ScoringError as exc:
             return Response({"detail": str(exc)}, status=400)
         return Response(AdminReviewSerializer(review).data)
 

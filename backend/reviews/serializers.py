@@ -1,6 +1,8 @@
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
+from scoring.serializers import FinalScoreSerializer
+
 from .models import Answer, Choice, Question, Review, ReviewPeriod
 from .services import get_progress
 
@@ -138,6 +140,7 @@ class AdminReviewSerializer(serializers.ModelSerializer):
     employee = UserBriefSerializer(read_only=True)
     primary_evaluator = UserBriefSerializer(read_only=True)
     secondary_evaluator = UserBriefSerializer(read_only=True)
+    final_score = FinalScoreSerializer(read_only=True)
 
     class Meta:
         model = Review
@@ -149,6 +152,7 @@ class AdminReviewSerializer(serializers.ModelSerializer):
             "secondary_evaluator",
             "status",
             "submitted_at",
+            "final_score",
         )
 
 

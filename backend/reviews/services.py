@@ -275,3 +275,29 @@ def assign_evaluators(review, *, primary_evaluator, secondary_evaluator=None):
         update_fields=["primary_evaluator", "secondary_evaluator", "updated_at"]
     )
     return review
+
+
+def filter_reviews(
+    *,
+    review_period_id=None,
+    department_id=None,
+    status=None,
+    employee_id=None,
+):
+    queryset = Review.objects.select_related(
+        "review_period",
+        "employee",
+        "employee__department",
+        "primary_evaluator",
+        "secondary_evaluator",
+        "final_score",
+    )
+    if review_period_id:
+        queryset = queryset.filter(review_period_id=review_period_id)
+    if department_id:
+        queryset = queryset.filter(employee__department_id=department_id)
+    if status in Review.Status.values:
+        queryset = queryset.filter(status=status)
+    if employee_id:
+        queryset = queryset.filter(employee_id=employee_id)
+    return queryset.order_by("id")
