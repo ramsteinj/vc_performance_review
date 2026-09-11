@@ -28,13 +28,13 @@
 
 ## 개발 환경 실행
 
-사전 요구사항: Python 3.13, Node 18+, Docker (개발용 PostgreSQL)
+사전 요구사항: Python 3.13, Node 18+, PostgreSQL (로컬 설치, 표준 포트 5432)
 
 ```bash
-# 1) 개발용 PostgreSQL (로컬 5432가 점유된 경우를 가정해 5433 사용)
-docker run -d --name vc-pr-pg \
-  -e POSTGRES_USER=perfreview -e POSTGRES_PASSWORD=devpass -e POSTGRES_DB=perfreview \
-  -p 5433:5432 postgres:18
+# 1) 개발용 PostgreSQL — 로컬에 설치된 인스턴스(5432)를 사용합니다 (Docker 불필요)
+#    아래 롤/DB가 없다면 먼저 생성:
+sudo -u postgres psql -c "CREATE ROLE perfreview LOGIN PASSWORD 'devpass';"
+sudo -u postgres createdb -O perfreview perfreview
 
 # 2) 백엔드 (저장소 루트에서)
 python3.13 -m venv .venv
@@ -50,7 +50,7 @@ npm install
 npm run dev                         # http://localhost:5173 (/api → 8000 프록시)
 ```
 
-DB 연결 정보는 환경변수로 변경 가능합니다. 기본값은 위 Docker 설정과 일치합니다
+DB 연결 정보는 환경변수로 변경 가능합니다. 기본값은 위 로컬 PostgreSQL 설정과 일치합니다
 (`backend/.env.example` 참고: `POSTGRES_*`, `DJANGO_SECRET_KEY`, `DJANGO_DEBUG`, `DJANGO_ALLOWED_HOSTS`).
 
 ### 기본 관리자 계정
