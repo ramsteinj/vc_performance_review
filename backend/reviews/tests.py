@@ -3,6 +3,7 @@ import datetime
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError, transaction
 from django.test import TestCase
+from rest_framework.test import APITestCase
 
 from .models import Answer, Question, Review, ReviewPeriod
 from .services import (
@@ -504,3 +505,187 @@ class SubmitReviewTests(TestCase):
         review, _ = get_or_create_review(period, employee, primary_evaluator=evaluator)
         with self.assertRaises(AnswerValidationError):
             submit_review(review)
+
+
+class ReviewPeriodAdminApiTests(APITestCase):
+    def setUp(self):
+        self.admin = make_user("ADM001", name="관리자", role="ADMIN")
+        self.employee = make_user("EMP001", name="홍길동")
+
+    def test_employee_cannot_access_admin_api(self):
+        self.client.force_login(self.employee)
+        response = self.client.get("/api/admin/review-periods/")
+        self.assertEqual(response.status_code, 403)
+
+    def test_admin_can_create_review_period(self):
+        self.client.force_login(self.admin)
+        response = self.client.post(
+            "/api/admin/review-periods/",
+            period_data(description="API 생성"),
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data["status"], "DRAFT")
+
+    def test_admin_cannot_create_reversed_dates(self):
+        self.client.force_login(self.admin)
+        response = self.client.post(
+            "/api/admin/review-periods/",
+            period_data(end_date=datetime.date(2025, 12, 31)),
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_status_change_to_open_requires_weight_total(self):
+        period = ReviewPeriod.objects.create(**period_data())
+        make_question(period, weight=50)
+        self.client.force_login(self.admin)
+        response = self.client.post(
+            f"/api/admin/review-periods/{period.id}/status/",
+            {"status": "OPEN"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_status_change_to_open(self):
+        period = ReviewPeriod.objects.create(**period_data())
+        make_question(period, weight=100)
+        self.client.force_login(self.admin)
+        response = self.client.post(
+            f"/api/admin/review-periods/{period.id}/status/",
+            {"status": "OPEN"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["status"], "OPEN")
+
+    def test_status_change_rejects_invalid_value(self):
+        period = ReviewPeriod.objects.create(**period_data())
+        self.client.force_login(self.admin)
+        response = self.client.post(
+            f"/api/admin/review-periods/{period.id}/status/",
+            {"status": "PAUSED"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+
+
+class QuestionAdminApiTests(APITestCase):
+    def setUp(self):
+        self.admin = make_user("ADM001", name="관리자", role="ADMIN")
+        self.employee = make_user("EMP001", name="홍길동")
+        self.period = ReviewPeriod.objects.create(**period_data())
+
+    def question_payload(self, **overrides):
+        data = {
+            "review_period": self.period.id,
+            "text": "직무 만족도를 평가하세요.",
+            "question_type": "SCALE",
+            "weight": 100,
+        }
+        data.update(overrides)
+        return data
+
+    def test_employee_cannot_create_question(self):
+        self.client.force_login(self.employee)
+        response = self.client.post(
+            "/api/admin/questions/", self.question_payload(), format="json"
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_admin_can_create_question(self):
+        self.client.force_login(self.admin)
+        response = self.client.post(
+            "/api/admin/questions/", self.question_payload(), format="json"
+        )
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(self.period.questions.count(), 1)
+
+    def test_create_on_open_period_rejected(self):
+        make_question(self.period, weight=100)
+        change_status(self.period, ReviewPeriod.Status.OPEN)
+        self.client.force_login(self.admin)
+        response = self.client.post(
+            "/api/admin/questions/",
+            self.question_payload(text="새 문항"),
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_admin_can_update_question_in_draft(self):
+        question = make_question(self.period, weight=50)
+        self.client.force_login(self.admin)
+        response = self.client.patch(
+            f"/api/admin/questions/{question.id}/",
+            {"weight": 60},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        question.refresh_from_db()
+        self.assertEqual(question.weight, 60)
+
+    def test_update_on_open_period_rejected(self):
+        question = make_question(self.period, weight=100)
+        change_status(self.period, ReviewPeriod.Status.OPEN)
+        self.client.force_login(self.admin)
+        response = self.client.patch(
+            f"/api/admin/questions/{question.id}/",
+            {"weight": 50},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_destroy_deactivates_question(self):
+        question = make_question(self.period, weight=100)
+        self.client.force_login(self.admin)
+        response = self.client.delete(f"/api/admin/questions/{question.id}/")
+        self.assertEqual(response.status_code, 204)
+        question.refresh_from_db()
+        self.assertFalse(question.is_active)
+
+    def test_choices_create_and_list(self):
+        question = make_question(
+            self.period,
+            text="근속 연수",
+            question_type=Question.QuestionType.SINGLE_CHOICE,
+            weight=100,
+        )
+        self.client.force_login(self.admin)
+        response = self.client.post(
+            f"/api/admin/questions/{question.id}/choices/",
+            {"text": "1년", "score": 20},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201)
+        listing = self.client.get(f"/api/admin/questions/{question.id}/choices/")
+        self.assertEqual(listing.status_code, 200)
+        self.assertEqual(len(listing.data), 1)
+
+    def test_choice_on_text_question_rejected(self):
+        question = make_question(
+            self.period,
+            question_type=Question.QuestionType.TEXT,
+            weight=100,
+        )
+        self.client.force_login(self.admin)
+        response = self.client.post(
+            f"/api/admin/questions/{question.id}/choices/",
+            {"text": "해당 없음"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_delete_choice(self):
+        question = make_question(
+            self.period,
+            text="근속 연수",
+            question_type=Question.QuestionType.SINGLE_CHOICE,
+            weight=100,
+        )
+        choice = add_choice(question, text="1년")
+        self.client.force_login(self.admin)
+        response = self.client.delete(
+            f"/api/admin/questions/{question.id}/choices/{choice.id}/"
+        )
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(question.choices.count(), 0)

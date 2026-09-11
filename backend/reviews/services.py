@@ -72,7 +72,7 @@ def change_status(review_period, new_status):
     return review_period
 
 
-def _ensure_period_editable(review_period):
+def ensure_period_editable(review_period):
     if review_period.status != ReviewPeriod.Status.DRAFT:
         raise QuestionLockedError(
             "questions can only be modified while the period is DRAFT "
@@ -90,7 +90,7 @@ def create_question(
     display_order=0,
     required=True,
 ):
-    _ensure_period_editable(review_period)
+    ensure_period_editable(review_period)
     return Question.objects.create(
         review_period=review_period,
         text=text,
@@ -103,7 +103,7 @@ def create_question(
 
 
 def update_question(question, **fields):
-    _ensure_period_editable(question.review_period)
+    ensure_period_editable(question.review_period)
     unknown = set(fields) - set(QUESTION_FIELDS)
     if unknown:
         raise ValueError(f"unknown question fields: {sorted(unknown)}")
@@ -122,7 +122,7 @@ def activate_question(question):
 
 
 def add_choice(question, *, text, display_order=0, score=None):
-    _ensure_period_editable(question.review_period)
+    ensure_period_editable(question.review_period)
     if question.question_type not in CHOICE_TYPES:
         raise ValueError("choices are only allowed for choice-type questions")
     return Choice.objects.create(
