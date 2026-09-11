@@ -3,6 +3,14 @@
 ## 프로젝트 목적
 Performance Review 시스템을 OpenCode + GLM-5.3 Flash 기반 Vibe Coding 방식으로 개발한다.
 
+## 문서 지도 (구현 전 반드시 해당 spec 확인)
+- `PROJECT.md`: 개요, 사용자, 점수 정책, 프로젝트 구조
+- `specs/01` 개요 · `02` 인증/권한 · `03` 데이터 모델 · `04` 평가 기간 · `05` 문항 관리
+- `specs/06` 평가자 지정 · `07` 직원 평가 응답 · `08` 점수 정책 · `09` 모니터링/CSV · `10` API 명세
+- `specs/11` Frontend · `12` Backend 아키텍처 · `13` 테스트 · `14` Vibe Coding Workflow · `15` 인수 기준
+- spec 13 = 테스트 체크리스트, spec 15 = 완료 판정 기준. 각 Phase 완료 시 이 둘로 검증한다.
+- spec에 정의되지 않은 기능이나 기술을 임의로 추가하지 않는다.
+
 ## 기술 스택
 - Frontend: Vue.js 3, Vite, Bootstrap 5, HTML5, CSS3, SPA
 - Backend: Python 3, Django, Django REST Framework, Django ORM
@@ -35,6 +43,8 @@ class User(AbstractUser):
 - `role=ADMIN`: 평가 관리자
 - `is_staff`, `is_superuser`는 Django Admin 권한이며 애플리케이션 role과 동일하지 않다.
 - 로그인 식별자는 `employee_number`; 이름은 추가 검증값으로 사용한다.
+- **최초 migration 전에 User 모델을 확정한다.** 이후 교체는 사실상 불가능하다. (specs/12)
+- `django.contrib.auth.models.User`를 직접 import하지 않는다. (specs/03, 12)
 
 ## Vibe Coding 규칙
 복잡한 작업 전:
