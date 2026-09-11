@@ -30,3 +30,52 @@ class ReviewPeriod(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class Question(models.Model):
+    class QuestionType(models.TextChoices):
+        TEXT = "TEXT", "Text"
+        SINGLE_CHOICE = "SINGLE_CHOICE", "Single Choice"
+        MULTIPLE_CHOICE = "MULTIPLE_CHOICE", "Multiple Choice"
+        SCALE = "SCALE", "Scale"
+
+    review_period = models.ForeignKey(
+        ReviewPeriod,
+        on_delete=models.CASCADE,
+        related_name="questions",
+    )
+    text = models.TextField()
+    description = models.TextField(blank=True)
+    question_type = models.CharField(
+        max_length=20,
+        choices=QuestionType.choices,
+    )
+    weight = models.PositiveIntegerField()
+    display_order = models.PositiveIntegerField(default=0)
+    required = models.BooleanField(default=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("display_order", "id")
+
+    def __str__(self):
+        return self.text
+
+
+class Choice(models.Model):
+    question = models.ForeignKey(
+        Question,
+        on_delete=models.CASCADE,
+        related_name="choices",
+    )
+    text = models.CharField(max_length=500)
+    display_order = models.PositiveIntegerField(default=0)
+    score = models.IntegerField(null=True, blank=True)
+
+    class Meta:
+        ordering = ("display_order", "id")
+
+    def __str__(self):
+        return self.text
