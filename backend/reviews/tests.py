@@ -8,11 +8,13 @@ from rest_framework.test import APITestCase
 from .models import Answer, Question, Review, ReviewPeriod
 from .services import (
     AnswerValidationError,
+    EvaluatorValidationError,
     InvalidStatusTransition,
     QuestionLockedError,
     WeightTotalError,
     activate_question,
     add_choice,
+    assign_evaluators,
     change_status,
     create_question,
     create_review_period,
@@ -23,6 +25,7 @@ from .services import (
     save_answer,
     submit_review,
     update_question,
+    validate_evaluators,
     validate_weight_total,
 )
 
@@ -689,3 +692,277 @@ class QuestionAdminApiTests(APITestCase):
         )
         self.assertEqual(response.status_code, 204)
         self.assertEqual(question.choices.count(), 0)
+
+
+class EvaluatorServiceTests(TestCase):
+    def make_submitted_review(self):
+        _, review = make_open_review()
+        answer_all_required(review)
+        submit_review(review)
+        return review
+
+    def test_assign_evaluators(self):
+        _, review = make_open_review()
+        primary = make_user("MGR011", name="1차 평가자")
+        secondary = make_user("MGR012", name="2차 평가자")
+        assign_evaluators(
+            review,
+            primary_evaluator=primary,
+            secondary_evaluator=secondary,
+        )
+        review.refresh_from_db()
+        self.assertEqual(review.primary_evaluator, primary)
+        self.assertEqual(review.secondary_evaluator, secondary)
+
+    def test_secondary_evaluator_optional(self):
+        _, review = make_open_review()
+        primary = make_user("MGR011", name="1차 평가자")
+        returned = assign_evaluators(review, primary_evaluator=primary)
+        self.assertIsNone(returned.secondary_evaluator)
+
+    def test_inactive_evaluator_rejected(self):
+        _, review = make_open_review()
+        inactive = make_user("MGR011", name="비활성 평가자")
+        User.objects.filter(employee_number="MGR011").update(is_active=False)
+        inactive.refresh_from_db()
+        with self.assertRaises(EvaluatorValidationError):
+            assign_evaluators(review, primary_evaluator=inactive)
+
+    def test_self_evaluator_rejected(self):
+        _, review = make_open_review()
+        employee = User.objects.get(employee_number="EMP001")
+        manager = make_user("MGR011", name="평가자")
+        with self.assertRaises(EvaluatorValidationError):
+            assign_evaluators(review, primary_evaluator=employee)
+        with self.assertRaises(EvaluatorValidationError):
+            assign_evaluators(
+                review,
+                primary_evaluator=manager,
+                secondary_evaluator=employee,
+            )
+
+    def test_change_after_submission_rejected(self):
+        review = self.make_submitted_review()
+        manager = make_user("MGR011", name="새 평가자")
+        with self.assertRaises(EvaluatorValidationError):
+            assign_evaluators(review, primary_evaluator=manager)
+
+    def test_validate_evaluators_requires_primary(self):
+        employee = make_user("EMP001")
+        with self.assertRaises(EvaluatorValidationError):
+            validate_evaluators(employee, None)
+
+
+class EvaluatorApiTests(APITestCase):
+    def setUp(self):
+        self.admin = make_user("ADM001", name="관리자", role="ADMIN")
+        self.employee = make_user("EMP001", name="홍길동")
+        self.manager = make_user("MGR001", name="평가자")
+        self.period = ReviewPeriod.objects.create(**period_data())
+        make_question(self.period, weight=100)
+
+    def create_review_payload(self, **overrides):
+        data = {
+            "review_period": self.period.id,
+            "employee": self.employee.id,
+            "primary_evaluator": self.manager.id,
+        }
+        data.update(overrides)
+        return data
+
+    def test_employee_cannot_create_review(self):
+        self.client.force_login(self.employee)
+        response = self.client.post(
+            "/api/admin/reviews/", self.create_review_payload(), format="json"
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_admin_can_create_review_with_evaluators(self):
+        self.client.force_login(self.admin)
+        response = self.client.post(
+            "/api/admin/reviews/", self.create_review_payload(), format="json"
+        )
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data["employee"]["employee_number"], "EMP001")
+        self.assertEqual(response.data["primary_evaluator"]["employee_number"], "MGR001")
+
+    def test_duplicate_review_returns_409(self):
+        get_or_create_review(self.period, self.employee, primary_evaluator=self.manager)
+        self.client.force_login(self.admin)
+        response = self.client.post(
+            "/api/admin/reviews/", self.create_review_payload(), format="json"
+        )
+        self.assertEqual(response.status_code, 409)
+
+    def test_self_evaluator_rejected(self):
+        self.client.force_login(self.admin)
+        payload = self.create_review_payload(primary_evaluator=self.employee.id)
+        response = self.client.post("/api/admin/reviews/", payload, format="json")
+        self.assertEqual(response.status_code, 400)
+
+    def test_inactive_evaluator_rejected(self):
+        inactive = make_user("MGR009", name="비활성")
+        User.objects.filter(employee_number="MGR009").update(is_active=False)
+        self.client.force_login(self.admin)
+        payload = self.create_review_payload(primary_evaluator=inactive.id)
+        response = self.client.post("/api/admin/reviews/", payload, format="json")
+        self.assertEqual(response.status_code, 400)
+
+    def test_assign_evaluators_endpoint(self):
+        review, _ = get_or_create_review(
+            self.period, self.employee, primary_evaluator=self.manager
+        )
+        secondary = make_user("MGR002", name="2차 평가자")
+        self.client.force_login(self.admin)
+        response = self.client.post(
+            f"/api/admin/reviews/{review.id}/evaluators/",
+            {"primary_evaluator": self.manager.id, "secondary_evaluator": secondary.id},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        review.refresh_from_db()
+        self.assertEqual(review.secondary_evaluator, secondary)
+
+    def test_employee_cannot_assign_evaluators(self):
+        review, _ = get_or_create_review(
+            self.period, self.employee, primary_evaluator=self.manager
+        )
+        self.client.force_login(self.employee)
+        response = self.client.post(
+            f"/api/admin/reviews/{review.id}/evaluators/",
+            {"primary_evaluator": self.manager.id},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 403)
+
+
+class EmployeeReviewApiTests(APITestCase):
+    def setUp(self):
+        self.period, self.review = make_open_review()
+        self.question = self.review.review_period.questions.first()
+        self.other_period, self.other_review = make_open_review(
+            employee_number="EMP002", evaluator_number="MGR002"
+        )
+
+    def login_employee(self, number="EMP001"):
+        self.client.force_login(User.objects.get(employee_number=number))
+
+    def test_my_requires_authentication(self):
+        response = self.client.get("/api/reviews/my/")
+        self.assertEqual(response.status_code, 403)
+
+    def test_my_reviews_returns_only_own(self):
+        self.login_employee()
+        response = self.client.get("/api/reviews/my/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]["id"], self.review.id)
+        self.assertIn("progress", response.data[0])
+
+    def test_retrieve_own_review_includes_questions_and_progress(self):
+        self.login_employee()
+        response = self.client.get(f"/api/reviews/{self.review.id}/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["progress"], 0)
+        self.assertEqual(len(response.data["questions"]), 1)
+
+    def test_retrieve_other_employee_review_forbidden(self):
+        self.login_employee()
+        response = self.client.get(f"/api/reviews/{self.other_review.id}/")
+        self.assertEqual(response.status_code, 404)
+
+    def test_put_answers_saves_and_updates_progress(self):
+        self.login_employee()
+        response = self.client.put(
+            f"/api/reviews/{self.review.id}/answers/",
+            {
+                "answers": [
+                    {"question": self.question.id, "answer_text": "좋음", "score": 4}
+                ]
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["status"], "IN_PROGRESS")
+        self.assertEqual(response.data["progress"], 100)
+        self.review.refresh_from_db()
+        self.assertEqual(self.review.status, Review.Status.IN_PROGRESS)
+
+    def test_answers_rejected_when_period_not_open(self):
+        draft_period = ReviewPeriod.objects.create(
+            name="DRAFT 기간",
+            start_date=datetime.date(2027, 1, 1),
+            end_date=datetime.date(2027, 6, 30),
+        )
+        make_question(draft_period, weight=100)
+        employee = User.objects.get(employee_number="EMP001")
+        manager = User.objects.get(employee_number="MGR001")
+        review, _ = get_or_create_review(
+            draft_period, employee, primary_evaluator=manager
+        )
+        self.login_employee()
+        response = self.client.put(
+            f"/api/reviews/{review.id}/answers/",
+            {"answers": [{"question": draft_period.questions.first().id}]},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_empty_answers_rejected(self):
+        self.login_employee()
+        response = self.client.put(
+            f"/api/reviews/{self.review.id}/answers/",
+            {"answers": []},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_submit_flow(self):
+        self.login_employee()
+        self.client.put(
+            f"/api/reviews/{self.review.id}/answers/",
+            {"answers": [{"question": self.question.id, "score": 4}]},
+            format="json",
+        )
+        response = self.client.post(f"/api/reviews/{self.review.id}/submit/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["status"], "SUBMITTED")
+        self.assertIsNotNone(response.data["submitted_at"])
+
+    def test_submit_blocked_until_required_answered(self):
+        self.login_employee()
+        response = self.client.post(f"/api/reviews/{self.review.id}/submit/")
+        self.assertEqual(response.status_code, 400)
+
+    def test_resubmit_rejected(self):
+        self.login_employee()
+        answer_all_required(self.review)
+        submit_review(self.review)
+        response = self.client.post(f"/api/reviews/{self.review.id}/submit/")
+        self.assertEqual(response.status_code, 400)
+
+    def test_modify_after_submit_rejected(self):
+        self.login_employee()
+        answer_all_required(self.review)
+        submit_review(self.review)
+        response = self.client.put(
+            f"/api/reviews/{self.review.id}/answers/",
+            {"answers": [{"question": self.question.id, "answer_text": "수정"}]},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_cannot_submit_other_employee_review(self):
+        self.login_employee()
+        response = self.client.post(f"/api/reviews/{self.other_review.id}/submit/")
+        self.assertEqual(response.status_code, 404)
+
+    def test_cannot_answer_other_employee_review(self):
+        self.login_employee()
+        other_question = self.other_review.review_period.questions.first()
+        response = self.client.put(
+            f"/api/reviews/{self.other_review.id}/answers/",
+            {"answers": [{"question": other_question.id}]},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 404)

@@ -21,6 +21,10 @@ class AnswerValidationError(ValueError):
     pass
 
 
+class EvaluatorValidationError(ValueError):
+    pass
+
+
 ALLOWED_TRANSITIONS = {
     ReviewPeriod.Status.DRAFT: {ReviewPeriod.Status.OPEN},
     ReviewPeriod.Status.OPEN: {ReviewPeriod.Status.CLOSED},
@@ -239,4 +243,35 @@ def submit_review(review):
     review.status = Review.Status.SUBMITTED
     review.submitted_at = timezone.now()
     review.save(update_fields=["status", "submitted_at", "updated_at"])
+    return review
+
+
+def _check_evaluator(employee, evaluator):
+    if not evaluator.is_active:
+        raise EvaluatorValidationError("evaluator must be an active user")
+    if evaluator.id == employee.id:
+        raise EvaluatorValidationError(
+            "employee cannot be their own evaluator"
+        )
+
+
+def validate_evaluators(employee, primary_evaluator, secondary_evaluator=None):
+    if primary_evaluator is None:
+        raise EvaluatorValidationError("primary_evaluator is required")
+    _check_evaluator(employee, primary_evaluator)
+    if secondary_evaluator is not None:
+        _check_evaluator(employee, secondary_evaluator)
+
+
+def assign_evaluators(review, *, primary_evaluator, secondary_evaluator=None):
+    if review.status == Review.Status.SUBMITTED:
+        raise EvaluatorValidationError(
+            "cannot change evaluators after submission"
+        )
+    validate_evaluators(review.employee, primary_evaluator, secondary_evaluator)
+    review.primary_evaluator = primary_evaluator
+    review.secondary_evaluator = secondary_evaluator
+    review.save(
+        update_fields=["primary_evaluator", "secondary_evaluator", "updated_at"]
+    )
     return review
