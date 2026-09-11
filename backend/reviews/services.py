@@ -1,7 +1,8 @@
 from django.db import transaction
 from django.db.models import Sum
+from django.utils import timezone
 
-from .models import Choice, Question, ReviewPeriod
+from .models import Answer, Choice, Question, Review, ReviewPeriod
 
 
 class InvalidStatusTransition(ValueError):
@@ -13,6 +14,10 @@ class QuestionLockedError(ValueError):
 
 
 class WeightTotalError(ValueError):
+    pass
+
+
+class AnswerValidationError(ValueError):
     pass
 
 
@@ -143,3 +148,95 @@ def validate_weight_total(review_period):
             f"active question weight total must be {TARGET_WEIGHT_TOTAL}, got {total}"
         )
     return total
+
+
+def get_or_create_review(
+    review_period,
+    employee,
+    *,
+    primary_evaluator=None,
+    secondary_evaluator=None,
+):
+    defaults = {}
+    if primary_evaluator is not None:
+        defaults["primary_evaluator"] = primary_evaluator
+    if secondary_evaluator is not None:
+        defaults["secondary_evaluator"] = secondary_evaluator
+    return Review.objects.get_or_create(
+        review_period=review_period,
+        employee=employee,
+        defaults=defaults,
+    )
+
+
+def _ensure_answerable(review, question):
+    if review.status == Review.Status.SUBMITTED:
+        raise AnswerValidationError("submitted review cannot be modified")
+    if review.review_period.status != ReviewPeriod.Status.OPEN:
+        raise AnswerValidationError("review period is not open")
+    if question.review_period_id != review.review_period_id:
+        raise AnswerValidationError(
+            "question does not belong to this review period"
+        )
+    if not question.is_active:
+        raise AnswerValidationError("question is not active")
+
+
+def save_answer(review, question, *, answer_text="", score=None, choice_ids=None):
+    _ensure_answerable(review, question)
+    with transaction.atomic():
+        answer, _ = Answer.objects.update_or_create(
+            review=review,
+            question=question,
+            defaults={
+                "answer_text": answer_text,
+                "score": score,
+            },
+        )
+        if choice_ids is not None:
+            choices = list(question.choices.filter(id__in=set(choice_ids)))
+            if len(choices) != len(set(choice_ids)):
+                raise AnswerValidationError("choices must belong to the question")
+            if (
+                question.question_type == Question.QuestionType.SINGLE_CHOICE
+                and len(choices) > 1
+            ):
+                raise AnswerValidationError(
+                    "only one choice is allowed for SINGLE_CHOICE"
+                )
+            answer.selected_choices.set(choices)
+        if review.status == Review.Status.NOT_STARTED:
+            review.status = Review.Status.IN_PROGRESS
+            review.save(update_fields=["status", "updated_at"])
+    return answer
+
+
+def get_progress(review):
+    required_count = review.review_period.questions.filter(
+        is_active=True, required=True
+    ).count()
+    if required_count == 0:
+        return 100
+    answered_count = review.answers.filter(
+        question__is_active=True, question__required=True
+    ).count()
+    return int(answered_count * 100 / required_count)
+
+
+@transaction.atomic
+def submit_review(review):
+    if review.status == Review.Status.SUBMITTED:
+        raise AnswerValidationError("review is already submitted")
+    if review.review_period.status != ReviewPeriod.Status.OPEN:
+        raise AnswerValidationError("review period is not open")
+    has_missing = (
+        review.review_period.questions.filter(is_active=True, required=True)
+        .exclude(id__in=review.answers.values_list("question_id", flat=True))
+        .exists()
+    )
+    if has_missing:
+        raise AnswerValidationError("all required questions must be answered")
+    review.status = Review.Status.SUBMITTED
+    review.submitted_at = timezone.now()
+    review.save(update_fields=["status", "submitted_at", "updated_at"])
+    return review

@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 from django.db.models import F, Q
 
@@ -79,3 +80,85 @@ class Choice(models.Model):
 
     def __str__(self):
         return self.text
+
+
+class Review(models.Model):
+    class Status(models.TextChoices):
+        NOT_STARTED = "NOT_STARTED", "Not Started"
+        IN_PROGRESS = "IN_PROGRESS", "In Progress"
+        SUBMITTED = "SUBMITTED", "Submitted"
+
+    review_period = models.ForeignKey(
+        ReviewPeriod,
+        on_delete=models.CASCADE,
+        related_name="reviews",
+    )
+    employee = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="reviews",
+    )
+    primary_evaluator = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="primary_reviews",
+    )
+    secondary_evaluator = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="secondary_reviews",
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.NOT_STARTED,
+    )
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["review_period", "employee"],
+                name="unique_review_per_period_and_employee",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.review_period} / {self.employee}"
+
+
+class Answer(models.Model):
+    review = models.ForeignKey(
+        Review,
+        on_delete=models.CASCADE,
+        related_name="answers",
+    )
+    question = models.ForeignKey(
+        Question,
+        on_delete=models.PROTECT,
+        related_name="answers",
+    )
+    answer_text = models.TextField(blank=True)
+    score = models.IntegerField(null=True, blank=True)
+    selected_choices = models.ManyToManyField(
+        Choice,
+        blank=True,
+        related_name="answers",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["review", "question"],
+                name="unique_answer_per_review_and_question",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.review} / {self.question}"
