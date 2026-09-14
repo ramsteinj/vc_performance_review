@@ -1,4 +1,5 @@
 from django.contrib.auth import get_user_model
+from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 
 from departments.models import Department
@@ -10,6 +11,21 @@ class LoginSerializer(serializers.Serializer):
     name = serializers.CharField()
     employee_number = serializers.CharField()
     password = serializers.CharField()
+
+
+class PasswordChangeSerializer(serializers.Serializer):
+    current_password = serializers.CharField()
+    new_password = serializers.CharField()
+
+    def validate_current_password(self, value):
+        user = self.context["request"].user
+        if not user.check_password(value):
+            raise serializers.ValidationError("current password is incorrect")
+        return value
+
+    def validate_new_password(self, value):
+        validate_password(value, self.context["request"].user)
+        return value
 
 
 class UserSerializer(serializers.ModelSerializer):

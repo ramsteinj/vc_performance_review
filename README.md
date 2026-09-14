@@ -86,8 +86,10 @@ perfreview-db   (PostgreSQL)
    - `DJANGO_CSRF_TRUSTED_ORIGINS` = `https://실제-web-URL`
    - `perfreview-web` 서비스의 rewrite 대상도 실제 api URL로 수정
 4. 프론트 URL 접속 → 로그인 화면 확인.
-5. 기본 관리자 비밀번호 확인: `perfreview-api` → Environment → `DEFAULT_ADMIN_PASSWORD` (Reveal).
-   로그인: **이름=`관리자` / 사번=`ADM001` / 비밀번호=(위 값)**. 첫 로그인 후 사용자 관리에서 비밀번호를 변경한다.
+5. 기본 관리자 비밀번호는 **Render Dashboard에 접속 → `perfreview-api` 서비스 선택 →
+   Environment 탭 → `DEFAULT_ADMIN_PASSWORD` 값**(Reveal 클릭)입니다.
+   로그인: **이름=`관리자` / 사번=`ADM001` / 비밀번호=(위 값)**.
+   첫 로그인 후 화면 우측 상단의 **패스워드 변경** 버튼으로 비밀번호를 변경한다.
 
 ### 무료 플랜 주의사항
 
@@ -118,7 +120,7 @@ Base: `/api` (인증: Django Session, 변경 요청에는 `X-CSRFToken` 헤더 �
 
 | 구분 | 엔드포인트 |
 |---|---|
-| 인증 | `POST /auth/login/` · `POST /auth/logout/` · `GET /auth/me/` |
+| 인증 | `POST /auth/login/` · `POST /auth/logout/` · `GET /auth/me/` · `POST /auth/password/change/` |
 | 직원 평가 | `GET /reviews/my/` · `GET /reviews/{id}/` · `PUT /reviews/{id}/answers/` · `POST /reviews/{id}/submit/` |
 | 관리자 CRUD | `/admin/users/` · `/admin/departments/` · `/admin/review-periods/` · `/admin/questions/` · `/admin/reviews/` · `/admin/department-performances/` |
 | 평가자/점수 | `POST /admin/reviews/{id}/evaluators/` · `POST /admin/reviews/{id}/calculate-score/` |

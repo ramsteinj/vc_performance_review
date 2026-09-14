@@ -126,6 +126,78 @@ class AuthApiTests(APITestCase):
         self.assertEqual(self.client.get("/api/auth/me/").status_code, 403)
 
 
+class PasswordChangeApiTests(APITestCase):
+    def create_user(self, employee_number="EMP001", **overrides):
+        data = {
+            "username": employee_number,
+            "employee_number": employee_number,
+            "name": "홍길동",
+            "password": "test-password-123!",
+        }
+        data.update(overrides)
+        return User.objects.create_user(**data)
+
+    def test_change_password_success(self):
+        user = self.create_user()
+        self.client.force_login(user)
+        response = self.client.post(
+            "/api/auth/password/change/",
+            {
+                "current_password": "test-password-123!",
+                "new_password": "new-password-456!",
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 204)
+        user.refresh_from_db()
+        self.assertTrue(user.check_password("new-password-456!"))
+        self.assertFalse(user.check_password("test-password-123!"))
+        self.assertEqual(self.client.get("/api/auth/me/").status_code, 200)
+
+    def test_rejects_wrong_current_password(self):
+        user = self.create_user()
+        self.client.force_login(user)
+        response = self.client.post(
+            "/api/auth/password/change/",
+            {
+                "current_password": "wrong-password",
+                "new_password": "new-password-456!",
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+        user.refresh_from_db()
+        self.assertTrue(user.check_password("test-password-123!"))
+
+    def test_rejects_short_password(self):
+        user = self.create_user()
+        self.client.force_login(user)
+        response = self.client.post(
+            "/api/auth/password/change/",
+            {"current_password": "test-password-123!", "new_password": "short1!"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_rejects_numeric_only_password(self):
+        user = self.create_user()
+        self.client.force_login(user)
+        response = self.client.post(
+            "/api/auth/password/change/",
+            {"current_password": "test-password-123!", "new_password": "12345678"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_requires_authentication(self):
+        response = self.client.post(
+            "/api/auth/password/change/",
+            {"current_password": "test-password-123!", "new_password": "new-password-456!"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 403)
+
+
 class UserAdminApiTests(APITestCase):
     def setUp(self):
         self.admin = User.objects.create_user(

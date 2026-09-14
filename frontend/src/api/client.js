@@ -34,6 +34,8 @@ const fieldLabels = {
   name: "이름",
   username: "아이디",
   password: "비밀번호",
+  current_password: "현재 비밀번호",
+  new_password: "새 비밀번호",
   department: "부서",
   role: "권한",
   is_active: "활성 여부",
@@ -59,6 +61,9 @@ const fieldLabels = {
 
 const exactMessages = {
   "invalid credentials": "이름, 사번 또는 비밀번호가 올바르지 않습니다.",
+  "current password is incorrect": "현재 비밀번호가 올바르지 않습니다.",
+  "This password is entirely numeric.": "비밀번호는 숫자만으로 구성될 수 없습니다.",
+  "This password is too common.": "널리 사용되는 비밀번호는 사용할 수 없습니다.",
   "inactive user": "비활성화된 계정입니다. 관리자에게 문의하세요.",
   "start_date must be on or before end_date": "시작일은 종료일 이전이어야 합니다.",
   "review_period cannot be changed": "평가 기간은 변경할 수 없습니다.",
@@ -117,6 +122,14 @@ const patternMessages = [
   {
     test: /^Ensure this value .+$/,
     translate: () => "값의 범위가 올바르지 않습니다.",
+  },
+  {
+    test: /^This password is too short\. It must contain at least (\d+) characters\.$/,
+    translate: (m) => `비밀번호는 최소 ${m[1]}자 이상이어야 합니다.`,
+  },
+  {
+    test: /^The password is too similar to .+$/,
+    translate: () => "비밀번호가 사용자 정보와 너무 유사합니다.",
   },
   {
     test: /^Request failed with status code (\d+)$/,
