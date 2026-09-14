@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from "vue";
 import client, { formatError } from "../../api/client";
+import { periodStatusLabels } from "../../utils/labels";
 import { useApi } from "../../composables/useApi";
 
 const { loading, error, run } = useApi();
@@ -162,7 +163,7 @@ onMounted(load);
         <label class="form-label">평가 기간</label>
         <select v-model="selectedPeriodId" class="form-select">
           <option v-for="period in periods" :key="period.id" :value="String(period.id)">
-            {{ period.name }} ({{ period.status }})
+            {{ period.name }} ({{ periodStatusLabels[period.status] || period.status }})
           </option>
         </select>
       </div>
@@ -170,7 +171,7 @@ onMounted(load);
         <div class="alert py-2 mb-0" :class="activeWeightTotal === 100 ? 'alert-success' : 'alert-warning'">
           활성 가중치 합계: {{ activeWeightTotal }} / 100
           <span v-if="selectedPeriod && selectedPeriod.status !== 'DRAFT'" class="d-block small">
-            ({{ selectedPeriod.status === 'OPEN' ? 'OPEN' : 'CLOSED' }} 기간은 문항 수정이 제한됩니다)
+            ({{ periodStatusLabels[selectedPeriod.status] || selectedPeriod.status }} 기간은 문항 수정이 제한됩니다)
           </span>
         </div>
       </div>

@@ -128,14 +128,14 @@ onMounted(load);
               class="btn btn-success btn-sm me-1"
               @click="changeStatus(period, 'OPEN')"
             >
-              OPEN
+              평가 시작
             </button>
             <button
               v-if="period.status === 'OPEN'"
               class="btn btn-dark btn-sm me-1"
               @click="changeStatus(period, 'CLOSED')"
             >
-              CLOSED
+              평가 종료
             </button>
             <button class="btn btn-outline-primary btn-sm" @click="editPeriod(period)">수정</button>
           </td>

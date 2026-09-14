@@ -1,6 +1,7 @@
 <script setup>
 import { onMounted, reactive, ref } from "vue";
 import client, { formatError } from "../../api/client";
+import { periodStatusLabels } from "../../utils/labels";
 import { useApi } from "../../composables/useApi";
 
 const { loading, error, run } = useApi();
@@ -115,7 +116,7 @@ onMounted(load);
         <label class="form-label">평가 기간</label>
         <select v-model="selectedPeriodId" class="form-select" @change="loadReviews">
           <option v-for="period in periods" :key="period.id" :value="String(period.id)">
-            {{ period.name }} ({{ period.status }})
+            {{ period.name }} ({{ periodStatusLabels[period.status] || period.status }})
           </option>
         </select>
       </div>
