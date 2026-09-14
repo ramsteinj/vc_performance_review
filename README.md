@@ -66,6 +66,42 @@ DB 연결 정보는 환경변수로 변경 가능합니다. 기본값은 위 로
 
 주의: 이름 필드에 사번(`ADM001`)이 아니라 계정의 **이름(`관리자`)** 을 입력해야 합니다.
 
+## Render 배포
+
+저장소 루트의 `render.yaml`(Blueprint)로 프론트/백엔드/DB 3개 리소스를 무료 플랜으로 배포합니다.
+
+```text
+perfreview-web  (Static Site: Vue SPA, /api/* → 백엔드 프록시)
+perfreview-api  (Web Service: gunicorn + Django, health: /api/health/)
+perfreview-db   (PostgreSQL)
+```
+
+### 배포 절차
+
+1. 변경사항을 GitHub에 푸시한다.
+2. Render Dashboard → **New → Blueprint** → 본 저장소 선택 → `render.yaml` 자동 인식 → **Apply**.
+3. 첫 배포가 완료되면 **할당된 URL을 확인**한다. 서비스명이 이미 사용 중이면 URL이 달라지는데,
+   이 경우 `perfreview-api` 서비스의 환경변수를 수정하고 재배포한다:
+   - `DJANGO_ALLOWED_HOSTS` = 실제 api URL의 호스트 (예: `perfreview-api.onrender.com`)
+   - `DJANGO_CSRF_TRUSTED_ORIGINS` = `https://실제-web-URL`
+   - `perfreview-web` 서비스의 rewrite 대상도 실제 api URL로 수정
+4. 프론트 URL 접속 → 로그인 화면 확인.
+5. 기본 관리자 비밀번호 확인: `perfreview-api` → Environment → `DEFAULT_ADMIN_PASSWORD` (Reveal).
+   로그인: **이름=`관리자` / 사번=`ADM001` / 비밀번호=(위 값)**. 첫 로그인 후 사용자 관리에서 비밀번호를 변경한다.
+
+### 무료 플랜 주의사항
+
+- **DB 30일 만료**: 무료 PostgreSQL은 생성 30일 후 삭제된다. 데이터 유지가 필요하면
+  `perfreview-db`를 `basic-256mb` 등 유료 플랜으로 전환한다 (환경변수/코드 변경 불필요).
+- **API 콜드스타트**: 무료 web service는 15분 미사용 시 슬립하며 첫 요청이 수십 초 걸릴 수 있다.
+
+### 배포 파이프라인 동작
+
+- 백엔드 빌드 시 `collectstatic → migrate → ensure_default_admin` 순으로 실행되며,
+  관리자 계정은 없을 때만 자동 생성된다 (로컬 `runserver` 시와 동일한 계정).
+- main 브랜치에 push하면 두 서비스가 자동 재배포된다.
+- Django admin(`https://perfreview-api...onrender.com/admin/`)도 이용 가능하다.
+
 ## 테스트
 
 ```bash

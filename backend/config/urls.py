@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.http import JsonResponse
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
@@ -29,6 +30,7 @@ employee_router.register("reviews", EmployeeReviewViewSet, basename="reviews")
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    path("api/health/", lambda request: JsonResponse({"status": "ok"})),
     path("api/auth/", include("accounts.urls")),
     path("api/admin/monitoring/", include("monitoring.urls")),
     path("api/admin/", include(router.urls)),

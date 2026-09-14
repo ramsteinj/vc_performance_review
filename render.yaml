@@ -1,0 +1,77 @@
+# Render Blueprint — 인사평가 시스템 (모두 무료 플랜)
+# 배포: Render Dashboard → New → Blueprint → 이 저장소 선택 → Apply
+# 주의: 무료 PostgreSQL은 30일 후 만료됩니다. 유지가 필요하면 basic-256mb로 전환하세요.
+services:
+  - type: web
+    name: perfreview-api
+    runtime: python
+    rootDir: backend
+    plan: free
+    buildCommand: |
+      pip install -r requirements.txt
+      python manage.py collectstatic --noinput
+      python manage.py migrate
+      python manage.py ensure_default_admin
+    startCommand: gunicorn config.wsgi:application --bind 0.0.0.0:$PORT
+    healthCheckPath: /api/health/
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.13.7
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: DJANGO_DEBUG
+        value: "false"
+      # 아래 두 값은 서비스명 기준 기본 URL입니다.
+      # Apply 후 실제 할당된 URL이 다르면 Dashboard → Environment에서 수정하세요.
+      - key: DJANGO_ALLOWED_HOSTS
+        value: perfreview-api.onrender.com
+      - key: DJANGO_CSRF_TRUSTED_ORIGINS
+        value: https://perfreview-web.onrender.com
+      - key: DEFAULT_ADMIN_PASSWORD
+        generateValue: true
+      - key: POSTGRES_DB
+        fromDatabase:
+          name: perfreview-db
+          property: database
+      - key: POSTGRES_USER
+        fromDatabase:
+          name: perfreview-db
+          property: user
+      - key: POSTGRES_PASSWORD
+        fromDatabase:
+          name: perfreview-db
+          property: password
+      - key: POSTGRES_HOST
+        fromDatabase:
+          name: perfreview-db
+          property: host
+      - key: POSTGRES_PORT
+        fromDatabase:
+          name: perfreview-db
+          property: port
+
+  - type: web
+    name: perfreview-web
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    pullRequestPreviewsEnabled: false
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+    routes:
+      # /api/* 요청을 백엔드로 프록시 (동일 오리진 → 쿠키/CSRF 문제 없음)
+      - type: rewrite
+        source: /api/*
+        destination: https://perfreview-api.onrender.com/api/*
+      # SPA history 모드 fallback (정적 파일 요청은 우선 서빙됨)
+      - type: rewrite
+        source: /*
+        destination: /index.html
+
+databases:
+  - name: perfreview-db
+    databaseName: perfreview
+    user: perfreview
+    plan: free
