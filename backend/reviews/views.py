@@ -33,6 +33,7 @@ from .services import (
     create_question,
     create_review_period,
     deactivate_question,
+    delete_question,
     ensure_period_editable,
     filter_reviews,
     get_or_create_review,
@@ -106,7 +107,11 @@ class QuestionViewSet(viewsets.ModelViewSet):
         serializer.instance = question
 
     def perform_update(self, serializer):
-        if "review_period" in serializer.validated_data:
+        data = serializer.validated_data
+        if (
+            "review_period" in data
+            and data["review_period"] != serializer.instance.review_period
+        ):
             raise ValidationError({"review_period": "review_period cannot be changed"})
         data = {
             key: value
@@ -120,7 +125,7 @@ class QuestionViewSet(viewsets.ModelViewSet):
 
     def perform_destroy(self, instance):
         try:
-            deactivate_question(instance)
+            delete_question(instance)
         except QuestionLockedError as exc:
             raise ValidationError({"detail": str(exc)})
 

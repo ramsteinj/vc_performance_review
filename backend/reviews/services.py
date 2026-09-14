@@ -121,6 +121,11 @@ def deactivate_question(question):
     return update_question(question, is_active=False)
 
 
+def delete_question(question):
+    ensure_period_editable(question.review_period)
+    question.delete()
+
+
 def activate_question(question):
     return update_question(question, is_active=True)
 

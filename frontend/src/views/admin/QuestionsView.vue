@@ -101,6 +101,22 @@ async function submitForm() {
 
 async function deactivateQuestion(question) {
   if (!confirm("문항을 비활성화하시겠습니까?")) return;
+  await run(() =>
+    client.patch(`/admin/questions/${question.id}/`, { is_active: false })
+  );
+  await load();
+}
+
+async function activateQuestion(question) {
+  if (!confirm("문항을 활성화하시겠습니까?")) return;
+  await run(() =>
+    client.patch(`/admin/questions/${question.id}/`, { is_active: true })
+  );
+  await load();
+}
+
+async function deleteQuestion(question) {
+  if (!confirm("문항을 삭제하시겠습니까? 삭제한 문항은 복구할 수 없습니다.")) return;
   await run(() => client.delete(`/admin/questions/${question.id}/`));
   await load();
 }
@@ -221,8 +237,14 @@ onMounted(load);
             </div>
             <div v-if="selectedPeriod.status === 'DRAFT'">
               <button class="btn btn-outline-primary btn-sm me-1" @click="editQuestion(question)">수정</button>
-              <button v-if="question.is_active" class="btn btn-outline-danger btn-sm" @click="deactivateQuestion(question)">
+              <button v-if="question.is_active" class="btn btn-outline-secondary btn-sm me-1" @click="deactivateQuestion(question)">
                 비활성화
+              </button>
+              <button v-else class="btn btn-outline-success btn-sm me-1" @click="activateQuestion(question)">
+                활성화
+              </button>
+              <button class="btn btn-outline-danger btn-sm" @click="deleteQuestion(question)">
+                삭제
               </button>
             </div>
           </div>

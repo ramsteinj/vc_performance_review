@@ -627,6 +627,32 @@ class QuestionAdminApiTests(APITestCase):
         question.refresh_from_db()
         self.assertEqual(question.weight, 60)
 
+    def test_admin_can_put_question_with_unchanged_review_period(self):
+        question = make_question(self.period, weight=50)
+        self.client.force_login(self.admin)
+        response = self.client.put(
+            f"/api/admin/questions/{question.id}/",
+            self.question_payload(weight=60, description="수정"),
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        question.refresh_from_db()
+        self.assertEqual(question.weight, 60)
+        self.assertEqual(question.review_period_id, self.period.id)
+
+    def test_update_rejects_changed_review_period(self):
+        question = make_question(self.period, weight=50)
+        other_period = ReviewPeriod.objects.create(**period_data())
+        self.client.force_login(self.admin)
+        response = self.client.patch(
+            f"/api/admin/questions/{question.id}/",
+            {"review_period": other_period.id},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+        question.refresh_from_db()
+        self.assertEqual(question.review_period_id, self.period.id)
+
     def test_update_on_open_period_rejected(self):
         question = make_question(self.period, weight=100)
         change_status(self.period, ReviewPeriod.Status.OPEN)
@@ -638,13 +664,20 @@ class QuestionAdminApiTests(APITestCase):
         )
         self.assertEqual(response.status_code, 400)
 
-    def test_destroy_deactivates_question(self):
+    def test_destroy_deletes_question(self):
         question = make_question(self.period, weight=100)
         self.client.force_login(self.admin)
         response = self.client.delete(f"/api/admin/questions/{question.id}/")
         self.assertEqual(response.status_code, 204)
-        question.refresh_from_db()
-        self.assertFalse(question.is_active)
+        self.assertFalse(Question.objects.filter(id=question.id).exists())
+
+    def test_destroy_on_open_period_rejected(self):
+        question = make_question(self.period, weight=100)
+        change_status(self.period, ReviewPeriod.Status.OPEN)
+        self.client.force_login(self.admin)
+        response = self.client.delete(f"/api/admin/questions/{question.id}/")
+        self.assertEqual(response.status_code, 400)
+        self.assertTrue(Question.objects.filter(id=question.id).exists())
 
     def test_choices_create_and_list(self):
         question = make_question(
