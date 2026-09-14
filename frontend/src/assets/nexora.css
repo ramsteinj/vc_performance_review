@@ -1,0 +1,340 @@
+/* =====================================================
+   NEXORA — Bootstrap 5 Business Theme (spec 16)
+   Design system applied to the 인사평가 SPA
+   ===================================================== */
+
+:root {
+  /* Color system */
+  --n-primary: #155EEF;
+  --n-primary-dark: #0E3FB0;
+  --n-secondary: #6941C6;
+  --n-navy: #0B1437;
+  --n-success: #12B76A;
+  --n-danger: #DC3545;
+  --n-warning: #F79009;
+  --n-slate: #667085;
+  --n-slate-light: #98A2B3;
+  --n-bg: #F7F9FC;
+  --n-bg-alt: #EEF2FF;
+  --n-border: #E4E7EC;
+  --n-white: #FFFFFF;
+
+  /* Gradients */
+  --n-gradient-primary: linear-gradient(135deg, #155EEF 0%, #6941C6 100%);
+  --n-gradient-soft: linear-gradient(135deg, #EEF2FF 0%, #F4F0FF 100%);
+  --n-gradient-dark: linear-gradient(135deg, #0B1437 0%, #1A2456 100%);
+
+  /* Typography */
+  --n-font-display: 'Sora', sans-serif;
+  --n-font-body: 'Inter', sans-serif;
+
+  /* Radius */
+  --n-radius-sm: 8px;
+  --n-radius-md: 14px;
+  --n-radius-lg: 20px;
+  --n-radius-pill: 100px;
+
+  /* Shadows */
+  --n-shadow-sm: 0 2px 8px rgba(11, 20, 55, 0.06);
+  --n-shadow-md: 0 8px 24px rgba(11, 20, 55, 0.08);
+  --n-shadow-lg: 0 20px 48px rgba(11, 20, 55, 0.12);
+  --n-shadow-primary: 0 12px 28px rgba(21, 94, 239, 0.25);
+
+  /* Bootstrap overrides */
+  --bs-primary: var(--n-primary);
+  --bs-primary-rgb: 21, 94, 239;
+  --bs-secondary-rgb: 105, 65, 198;
+  --bs-success-rgb: 18, 183, 106;
+  --bs-danger-rgb: 220, 53, 69;
+  --bs-warning-rgb: 247, 144, 9;
+  --bs-body-font-family: var(--n-font-body);
+  --bs-body-color: var(--n-slate);
+  --bs-body-bg: var(--n-bg);
+  --bs-border-color: var(--n-border);
+  --bs-border-radius: var(--n-radius-sm);
+  --bs-link-color: var(--n-primary);
+  --bs-link-hover-color: var(--n-primary-dark);
+}
+
+/* =====================================================
+   BASE
+   ===================================================== */
+body {
+  font-family: var(--n-font-body);
+  color: var(--n-slate);
+  background-color: var(--n-bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4, h5, h6,
+.h1, .h2, .h3, .h4, .h5, .h6 {
+  font-family: var(--n-font-display);
+  color: var(--n-navy);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+/* =====================================================
+   BUTTONS
+   ===================================================== */
+.btn {
+  font-family: var(--n-font-display);
+  font-weight: 600;
+  border-radius: var(--n-radius-sm);
+  transition: all 0.25s ease;
+  border-width: 1.5px;
+}
+
+.btn-primary {
+  --bs-btn-bg: var(--n-primary);
+  --bs-btn-border-color: var(--n-primary);
+  --bs-btn-hover-bg: var(--n-primary-dark);
+  --bs-btn-hover-border-color: var(--n-primary-dark);
+  --bs-btn-active-bg: var(--n-primary-dark);
+  --bs-btn-active-border-color: var(--n-primary-dark);
+  --bs-btn-disabled-bg: var(--n-primary);
+  --bs-btn-disabled-border-color: var(--n-primary);
+  background: var(--n-gradient-primary);
+  border: none;
+  box-shadow: var(--n-shadow-primary);
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 32px rgba(21, 94, 239, 0.32);
+}
+
+.btn-outline-primary {
+  --bs-btn-color: var(--n-primary);
+  --bs-btn-border-color: var(--n-primary);
+  --bs-btn-hover-bg: var(--n-primary);
+  --bs-btn-hover-border-color: var(--n-primary);
+  --bs-btn-active-bg: var(--n-primary-dark);
+  --bs-btn-active-border-color: var(--n-primary-dark);
+}
+
+.btn-outline-primary:hover {
+  transform: translateY(-2px);
+}
+
+/* =====================================================
+   NAVBAR (sticky, Nexora style)
+   ===================================================== */
+.navbar-nexora {
+  position: sticky;
+  top: 0;
+  z-index: 1030;
+  padding: 0.85rem 0;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(12px);
+  box-shadow: var(--n-shadow-sm);
+}
+
+.navbar-brand-custom {
+  font-family: var(--n-font-display);
+  font-weight: 800;
+  font-size: 1.35rem;
+  color: var(--n-navy) !important;
+  letter-spacing: -0.02em;
+}
+
+.navbar-brand-custom span { color: var(--n-primary); }
+
+.navbar-nexora .nav-link {
+  font-family: var(--n-font-display);
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--n-slate) !important;
+  padding: 0.5rem 1.1rem !important;
+  border-radius: var(--n-radius-sm);
+  transition: all 0.2s ease;
+}
+
+.navbar-nexora .nav-link:hover,
+.navbar-nexora .nav-link.active {
+  color: var(--n-navy) !important;
+  background: var(--n-bg-alt);
+}
+
+.navbar-user-name {
+  font-family: var(--n-font-display);
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--n-navy);
+}
+
+/* =====================================================
+   SIDEBAR (admin)
+   ===================================================== */
+.sidebar-nexora {
+  background: #fff;
+  border: 1px solid var(--n-border);
+  border-radius: var(--n-radius-md);
+  box-shadow: var(--n-shadow-sm);
+  padding: 0.75rem;
+}
+
+.sidebar-nexora .sidebar-link {
+  display: block;
+  font-family: var(--n-font-display);
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--n-slate);
+  text-decoration: none;
+  padding: 0.65rem 1rem;
+  border-radius: var(--n-radius-sm);
+  transition: all 0.2s ease;
+  margin-bottom: 0.15rem;
+}
+
+.sidebar-nexora .sidebar-link:hover {
+  color: var(--n-navy);
+  background: var(--n-bg);
+}
+
+.sidebar-nexora .sidebar-link.active {
+  color: #fff;
+  background: var(--n-gradient-primary);
+  box-shadow: var(--n-shadow-primary);
+}
+
+/* =====================================================
+   CARDS
+   ===================================================== */
+.card {
+  border: 1px solid var(--n-border);
+  border-radius: var(--n-radius-md);
+  box-shadow: var(--n-shadow-sm);
+}
+
+.card-header {
+  background: #fff;
+  border-bottom: 1px solid var(--n-border);
+  font-family: var(--n-font-display);
+  font-weight: 700;
+  color: var(--n-navy);
+}
+
+/* =====================================================
+   FORMS
+   ===================================================== */
+.form-control,
+.form-select {
+  border: 1.5px solid var(--n-border);
+  border-radius: var(--n-radius-sm);
+  background-color: var(--n-bg);
+  transition: all 0.2s ease;
+}
+
+.form-control:focus,
+.form-select:focus {
+  border-color: var(--n-primary);
+  box-shadow: 0 0 0 4px rgba(21, 94, 239, 0.1);
+  background-color: #fff;
+}
+
+.form-label {
+  font-family: var(--n-font-display);
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--n-navy);
+}
+
+.form-check-input:checked {
+  background-color: var(--n-primary);
+  border-color: var(--n-primary);
+}
+
+.form-check-input:focus {
+  border-color: var(--n-primary);
+  box-shadow: 0 0 0 4px rgba(21, 94, 239, 0.1);
+}
+
+/* =====================================================
+   TABLES
+   ===================================================== */
+.table {
+  --bs-table-color: var(--n-navy);
+  vertical-align: middle;
+}
+
+.table thead th {
+  font-family: var(--n-font-display);
+  font-weight: 700;
+  font-size: 0.85rem;
+  letter-spacing: 0.03em;
+  color: var(--n-slate);
+  background-color: var(--n-bg);
+  border-bottom: 1px solid var(--n-border);
+}
+
+/* =====================================================
+   BADGES / ALERTS / PROGRESS
+   ===================================================== */
+.badge {
+  font-family: var(--n-font-display);
+  font-weight: 600;
+  border-radius: var(--n-radius-pill);
+  padding: 0.45em 0.9em;
+}
+
+.badge.bg-primary { background: var(--n-primary) !important; }
+
+.alert {
+  border-radius: var(--n-radius-sm);
+  border: 1px solid transparent;
+}
+
+.alert-info {
+  background: var(--n-bg-alt);
+  border-color: #D6DEFF;
+  color: var(--n-primary-dark);
+}
+
+.alert-success {
+  background: #E8F8F0;
+  border-color: #B8ECD3;
+  color: #0B7A47;
+}
+
+.alert-danger {
+  background: #FDECEC;
+  border-color: #F5C2C2;
+  color: #A93034;
+}
+
+.alert-warning {
+  background: #FEF3E2;
+  border-color: #FADFAF;
+  color: #B26A05;
+}
+
+.progress {
+  border-radius: var(--n-radius-pill);
+  background-color: var(--n-bg-alt);
+}
+
+.progress-bar {
+  background: var(--n-gradient-primary);
+}
+
+/* =====================================================
+   MISC
+   ===================================================== */
+.list-group-item {
+  border-color: var(--n-border);
+}
+
+.pagination .page-link {
+  font-family: var(--n-font-display);
+  font-weight: 600;
+  color: var(--n-primary);
+  border-radius: var(--n-radius-sm);
+  border-color: var(--n-border);
+}
+
+.pagination .page-item.active .page-link {
+  background: var(--n-primary);
+  border-color: var(--n-primary);
+  color: #fff;
+}
