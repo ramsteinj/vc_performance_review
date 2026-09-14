@@ -150,12 +150,21 @@ async function submitReview() {
     </template>
     <div v-if="submitError" class="alert alert-danger">{{ submitError }}</div>
 
+    <div class="alert alert-info py-2">
+      각 문항은 <strong>1~5점</strong>으로 평가합니다. 문항별 가중치가 높을수록
+      최종 점수에 더 크게 반영됩니다 (가중 평균).
+    </div>
+
     <div v-for="question in questions" :key="question.id" class="card mb-3">
       <div class="card-body">
         <h2 class="h6">
           {{ question.text }}
           <span v-if="question.required" class="badge bg-danger">필수</span>
           <span class="badge bg-secondary">{{ typeLabels[question.question_type] }}</span>
+          <span
+            class="badge bg-primary"
+            :title="'가중치가 높을수록 최종 점수 반영 비율이 커집니다'"
+          >가중치 {{ question.weight }}</span>
         </h2>
         <p v-if="question.description" class="text-muted small mb-2">
           {{ question.description }}
