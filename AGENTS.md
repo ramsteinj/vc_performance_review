@@ -7,7 +7,7 @@ Performance Review 시스템을 OpenCode + GLM-5.3 Flash 기반 Vibe Coding 방�
 - `PROJECT.md`: 개요, 사용자, 점수 정책, 프로젝트 구조
 - `specs/01` 개요 · `02` 인증/권한 · `03` 데이터 모델 · `04` 평가 기간 · `05` 문항 관리
 - `specs/06` 평가자 지정 · `07` 직원 평가 응답 · `08` 점수 정책 · `09` 모니터링/CSV · `10` API 명세
-- `specs/11` Frontend · `12` Backend 아키텍처 · `13` 테스트 · `14` Vibe Coding Workflow · `15` 인수 기준
+- `specs/11` Frontend · `12` Backend 아키텍처 · `13` 테스트 · `14` Vibe Coding Workflow · `15` 인수 기준 · `16` UI/UX
 - spec 13 = 테스트 체크리스트, spec 15 = 완료 판정 기준. 각 Phase 완료 시 이 둘로 검증한다.
 - spec에 정의되지 않은 기능이나 기술을 임의로 추가하지 않는다.
 
