@@ -37,10 +37,10 @@ sudo -u postgres psql -c "CREATE ROLE perfreview LOGIN PASSWORD 'devpass';"
 sudo -u postgres createdb -O perfreview perfreview
 
 # 2) 백엔드 (저장소 루트에서)
+cd backend
 python3.13 -m venv .venv
 source .venv/bin/activate
 pip install -r backend/requirements.txt
-cd backend
 python manage.py migrate
 python manage.py runserver          # http://localhost:8000
 
